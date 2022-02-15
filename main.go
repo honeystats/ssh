@@ -35,6 +35,7 @@ func sshHandler(s ssh.Session) {
 }
 
 func main() {
-	ssh.Handle(sshHandler)
-	log.Fatal(ssh.ListenAndServe(":2222", nil))
+	srv := &ssh.Server{Addr: ":2222", Handler: sshHandler}
+	srv.Version = "OpenSSH_8.4p1 Ubuntu-6ubuntu2.1"
+	log.Fatal(srv.ListenAndServe())
 }
