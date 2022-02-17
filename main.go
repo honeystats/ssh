@@ -15,10 +15,17 @@ import (
 	"github.com/gliderlabs/ssh"
 )
 
+var PORT_NUM string
+
 func init() {
 	_, urlSet := os.LookupEnv("ELASTICSEARCH_URL")
 	if !urlSet {
 		panic("ELASTICSEARCH_URL is not set.")
+	}
+	var portSet bool
+	PORT_NUM, portSet = os.LookupEnv("PORT")
+	if !portSet {
+		panic("PORT is not set.")
 	}
 }
 
@@ -102,7 +109,7 @@ func setupES() {
 
 func main() {
 	setupES()
-	srv := &ssh.Server{Addr: ":2222", Handler: sshHandler}
+	srv := &ssh.Server{Addr: ":" + PORT_NUM, Handler: sshHandler}
 	srv.Version = "OpenSSH_8.4p1 Ubuntu-6ubuntu2.1"
 	log.Fatal(srv.ListenAndServe())
 }
