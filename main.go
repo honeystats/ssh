@@ -2,9 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
-	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -12,8 +9,6 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/elastic/go-elasticsearch/v7"
-	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/fatih/color"
 	"github.com/gliderlabs/ssh"
 )
@@ -33,8 +28,10 @@ func init() {
 }
 
 type SSHDoc struct {
-	Action string      `json:"action"`
-	Fields SubDocument `json:"fields"`
+	Action     string      `json:"action"`
+	SourceIP   string      `json:"sourceIP"`
+	SourcePort string      `json:"sourcePort"`
+	Fields     SubDocument `json:"fields"`
 }
 
 type SubDocument interface {
@@ -51,8 +48,7 @@ func (_ DocCommandRun) action() string {
 }
 
 type DocLogin struct {
-	User   string `json:"user"`
-	PubKey string `json:"pubKey"`
+	User string `json:"user"`
 }
 
 func (_ DocLogin) action() string {
@@ -95,6 +91,9 @@ func makePrompt(s ssh.Session) string {
 }
 
 func sshHandler(s ssh.Session) {
+	sendToES := func(doc SubDocument) {
+		sendToESWithCtx(s.RemoteAddr(), doc)
+	}
 	reader := bufio.NewReader(s)
 	io.WriteString(s, makePrompt(s))
 	sendToES(DocLogin{
@@ -156,56 +155,15 @@ func sshHandler(s ssh.Session) {
 	}
 }
 
-func sendToES(doc SubDocument) {
-	toplevelDoc := SSHDoc{
-		Action: doc.action(),
-		Fields: doc,
-	}
-	docBytes, err := json.Marshal(toplevelDoc)
-	if err != nil {
-		fmt.Println("there was an error marshalling the document to JSON")
-		return
-	}
-	req := esapi.IndexRequest{
-		Index:   "sshdev-index",
-		Body:    bytes.NewReader(docBytes),
-		Refresh: "true",
-	}
-	res, err := req.Do(context.Background(), ES_CLIENT)
-	if err != nil {
-		log.Fatalf("Error getting response: %s", err)
-	}
-	defer res.Body.Close()
-	if res.IsError() {
-		log.Printf("[%s] Error indexing document", res.Status())
-	} else {
-		// Deserialize the response into a map.
-		var r map[string]interface{}
-		if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
-			log.Printf("Error parsing the response body: %s", err)
-		} else {
-			// Print the response status and indexed document version.
-			log.Printf("[%s] %s; version=%d", res.Status(), r["result"], int(r["_version"].(float64)))
-		}
-	}
-}
-
-var ES_CLIENT *elasticsearch.Client
-
-func setupES() {
-	ES_CLIENT, _ = elasticsearch.NewDefaultClient()
-	log.Println(ES_CLIENT.Info())
-}
-
 func pubKeyHandler(ctx ssh.Context, key ssh.PublicKey) bool {
-	sendToES(DocPubkey{
+	sendToESWithCtx(ctx.RemoteAddr(), DocPubkey{
 		Key: string(gossh.MarshalAuthorizedKey(key)),
 	})
 	return false
 }
 
 func passwordHandler(ctx ssh.Context, password string) bool {
-	sendToES(DocPassword{
+	sendToESWithCtx(ctx.RemoteAddr(), DocPassword{
 		Password: password,
 	})
 	// return password == "ubuntu"
