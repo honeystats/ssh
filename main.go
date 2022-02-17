@@ -56,16 +56,20 @@ func sshHandler(s ssh.Session) {
 		cmd = append(cmd, oneByte)
 		fmt.Printf("%#v\n", oneByte)
 		if err != nil {
-			cmd = []byte{}
-			return
-		}
-		if oneByte == '\x04' {
-			cmd = []byte{}
 			s.Close()
 			return
 		}
-		io.WriteString(s, string(oneByte))
-		if oneByte == '\x0d' {
+		switch oneByte {
+		case '\x04': // Ctrl+D / EOF
+			sendToES(ESDocument{
+				Action:  "command_run",
+				Command: string(cmd),
+				User:    s.User(),
+			})
+			io.WriteString(s, "logout\n")
+			s.Close()
+			return
+		case '\x0d': // Return
 			sendToES(ESDocument{
 				Action:  "command_run",
 				Command: string(cmd),
@@ -74,6 +78,8 @@ func sshHandler(s ssh.Session) {
 			cmd = []byte{}
 			io.WriteString(s, string('\n'))
 			io.WriteString(s, makePrompt(s))
+		default:
+			io.WriteString(s, string(oneByte))
 		}
 	}
 }
