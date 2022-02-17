@@ -12,6 +12,7 @@ import (
 
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
+	"github.com/fatih/color"
 	"github.com/gliderlabs/ssh"
 )
 
@@ -36,7 +37,14 @@ type ESDocument struct {
 }
 
 func makePrompt(s ssh.Session) string {
-	return s.User() + "@honeypot $ "
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "ubuntu"
+	}
+	userAtHost := color.GreenString(s.User() + "@" + hostname)
+	path := color.BlueString("~")
+	promptStr := color.WhiteString("$ ")
+	return userAtHost + ":" + path + promptStr
 }
 
 func sshHandler(s ssh.Session) {
