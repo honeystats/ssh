@@ -8,11 +8,19 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/gliderlabs/ssh"
 )
+
+func init() {
+	_, urlSet := os.LookupEnv("ELASTICSEARCH_URL")
+	if !urlSet {
+		panic("ELASTICSEARCH_URL is not set.")
+	}
+}
 
 type ESDocument struct {
 	Action  string `json:"action"`
