@@ -79,6 +79,17 @@ func makePrompt(s ssh.Session) string {
 func sshHandler(s ssh.Session) {
 	reader := bufio.NewReader(s)
 	io.WriteString(s, makePrompt(s))
+	pubKey := s.PublicKey()
+	if pubKey == nil {
+		sendToES(DocLogin{
+			User: s.User(),
+		})
+	} else {
+		sendToES(DocLogin{
+			User:   s.User(),
+			PubKey: string(s.PublicKey().Marshal()),
+		})
+	}
 	var cmd []byte = []byte{}
 	for {
 		oneByte, err := reader.ReadByte()
