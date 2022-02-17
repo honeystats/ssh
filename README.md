@@ -1,3 +1,3 @@
 # ssh
 
-Test attempting to update the content here in the SSH servie. 
+Emulates an SSH server, recording pertinent details and sending them off to elasticsearch.
