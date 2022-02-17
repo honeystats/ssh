@@ -30,10 +30,39 @@ func init() {
 	}
 }
 
-type ESDocument struct {
-	Action  string `json:"action"`
+type SSHDoc struct {
+	Action string      `json:"action"`
+	Fields SubDocument `json:"fields"`
+}
+
+type SubDocument interface {
+	action() string
+}
+
+type DocCommandRun struct {
 	Command string `json:"command"`
 	User    string `json:"user"`
+}
+
+func (_ DocCommandRun) action() string {
+	return "command_run"
+}
+
+type DocLogin struct {
+	User   string `json:"user"`
+	PubKey string `json:"pubKey"`
+}
+
+func (_ DocLogin) action() string {
+	return "login"
+}
+
+type DocLogout struct {
+	User string `json:"user"`
+}
+
+func (_ DocLogout) action() string {
+	return "logout"
 }
 
 func makePrompt(s ssh.Session) string {
@@ -60,26 +89,22 @@ func sshHandler(s ssh.Session) {
 		}
 		switch oneByte {
 		case '\x04': // Ctrl+D / EOF
-			fmt.Printf("len(cmd)=[%d]", len(cmd))
 			if len(cmd) != 0 {
 				continue
 			}
-			sendToES(ESDocument{
-				Action:  "command_run",
-				Command: string(cmd),
-				User:    s.User(),
+			sendToES(DocLogout{
+				User: s.User(),
 			})
 			io.WriteString(s, "logout\n")
 			s.Close()
 			return
 		case '\x0d': // Return
-			sendToES(ESDocument{
-				Action:  "command_run",
+			sendToES(DocCommandRun{
 				Command: string(cmd),
 				User:    s.User(),
 			})
 			cmd = []byte{}
-			io.WriteString(s, string('\n'))
+			io.WriteString(s, "\n")
 			io.WriteString(s, makePrompt(s))
 		case '\x7f': // Backspace
 			if len(cmd) < 1 {
@@ -88,12 +113,21 @@ func sshHandler(s ssh.Session) {
 			}
 			cmd = cmd[0 : len(cmd)-1]
 			io.WriteString(s, "\x08 \x08")
-		case '\x1b':
-		case '\x5b':
-		case '\x41':
-		case '\x42':
-		case '\x43':
-		case '\x44':
+		case '\x1b': // Arrow Key Escape 1
+		case '\x5b': // Arrow Key Escape 2
+		case '\x41': // Arrow Key
+		case '\x42': // Arrow Key
+		case '\x43': // Arrow Key
+		case '\x44': // Arrow Key
+		case '\x03': // Ctrl+C
+			cmd = append(cmd, '^', 'C')
+			sendToES(DocCommandRun{
+				Command: string(cmd),
+				User:    s.User(),
+			})
+			io.WriteString(s, "^C\n")
+			io.WriteString(s, makePrompt(s))
+			cmd = []byte{}
 		default:
 			cmd = append(cmd, oneByte)
 			io.WriteString(s, string(oneByte))
@@ -101,8 +135,12 @@ func sshHandler(s ssh.Session) {
 	}
 }
 
-func sendToES(doc ESDocument) {
-	docBytes, err := json.Marshal(doc)
+func sendToES(doc SubDocument) {
+	toplevelDoc := SSHDoc{
+		Action: doc.action(),
+		Fields: doc,
+	}
+	docBytes, err := json.Marshal(toplevelDoc)
 	if err != nil {
 		fmt.Println("there was an error marshalling the document to JSON")
 		return
