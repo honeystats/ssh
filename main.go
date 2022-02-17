@@ -10,6 +10,8 @@ import (
 	"log"
 	"os"
 
+	gossh "golang.org/x/crypto/ssh"
+
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/fatih/color"
@@ -65,6 +67,22 @@ func (_ DocLogout) action() string {
 	return "logout"
 }
 
+type DocPubkey struct {
+	Key string `json:"key"`
+}
+
+func (_ DocPubkey) action() string {
+	return "tried_pubkey"
+}
+
+type DocPassword struct {
+	Password string `json:"password"`
+}
+
+func (_ DocPassword) action() string {
+	return "tried_password"
+}
+
 func makePrompt(s ssh.Session) string {
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -79,17 +97,9 @@ func makePrompt(s ssh.Session) string {
 func sshHandler(s ssh.Session) {
 	reader := bufio.NewReader(s)
 	io.WriteString(s, makePrompt(s))
-	pubKey := s.PublicKey()
-	if pubKey == nil {
-		sendToES(DocLogin{
-			User: s.User(),
-		})
-	} else {
-		sendToES(DocLogin{
-			User:   s.User(),
-			PubKey: string(s.PublicKey().Marshal()),
-		})
-	}
+	sendToES(DocLogin{
+		User: s.User(),
+	})
 	var cmd []byte = []byte{}
 	for {
 		oneByte, err := reader.ReadByte()
@@ -187,9 +197,29 @@ func setupES() {
 	log.Println(ES_CLIENT.Info())
 }
 
+func pubKeyHandler(ctx ssh.Context, key ssh.PublicKey) bool {
+	sendToES(DocPubkey{
+		Key: string(gossh.MarshalAuthorizedKey(key)),
+	})
+	return false
+}
+
+func passwordHandler(ctx ssh.Context, password string) bool {
+	sendToES(DocPassword{
+		Password: password,
+	})
+	// return password == "ubuntu"
+	return true
+}
+
 func main() {
 	setupES()
-	srv := &ssh.Server{Addr: ":" + PORT_NUM, Handler: sshHandler}
+	srv := &ssh.Server{
+		Addr:             ":" + PORT_NUM,
+		Handler:          sshHandler,
+		PublicKeyHandler: pubKeyHandler,
+		PasswordHandler:  passwordHandler,
+	}
 	srv.Version = "OpenSSH_8.4p1 Ubuntu-6ubuntu2.1"
 	log.Fatal(srv.ListenAndServe())
 }
