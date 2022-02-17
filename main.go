@@ -53,7 +53,6 @@ func sshHandler(s ssh.Session) {
 	var cmd []byte = []byte{}
 	for {
 		oneByte, err := reader.ReadByte()
-		cmd = append(cmd, oneByte)
 		fmt.Printf("%#v\n", oneByte)
 		if err != nil {
 			s.Close()
@@ -62,7 +61,7 @@ func sshHandler(s ssh.Session) {
 		switch oneByte {
 		case '\x04': // Ctrl+D / EOF
 			fmt.Printf("len(cmd)=[%d]", len(cmd))
-			if len(cmd) != 1 {
+			if len(cmd) != 0 {
 				continue
 			}
 			sendToES(ESDocument{
@@ -82,14 +81,21 @@ func sshHandler(s ssh.Session) {
 			cmd = []byte{}
 			io.WriteString(s, string('\n'))
 			io.WriteString(s, makePrompt(s))
-		case '\x7f':
-			if len(cmd) < 2 {
+		case '\x7f': // Backspace
+			if len(cmd) < 1 {
 				cmd = []byte{}
 				continue
 			}
-			cmd = cmd[0 : len(cmd)-2]
+			cmd = cmd[0 : len(cmd)-1]
 			io.WriteString(s, "\x08 \x08")
+		case '\x1b':
+		case '\x5b':
+		case '\x41':
+		case '\x42':
+		case '\x43':
+		case '\x44':
 		default:
+			cmd = append(cmd, oneByte)
 			io.WriteString(s, string(oneByte))
 		}
 	}
