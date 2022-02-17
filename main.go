@@ -41,8 +41,8 @@ func makePrompt(s ssh.Session) string {
 	if err != nil {
 		hostname = "ubuntu"
 	}
-	userAtHost := color.GreenString(s.User() + "@" + hostname)
-	path := color.BlueString("~")
+	userAtHost := color.HiGreenString(s.User() + "@" + hostname)
+	path := color.HiBlueString("~")
 	promptStr := color.WhiteString("$ ")
 	return userAtHost + ":" + path + promptStr
 }
