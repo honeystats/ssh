@@ -1,0 +1,24 @@
+root:
+  name: "/"
+  permissions: 755
+  subdirs:
+    - name: home
+      permissions: 755
+      subdirs:
+        - name: ubuntu
+          permissions: 755
+          files:
+            - name: secret
+              content: "This is a secret"
+          subdirs:
+            - name: example
+              permissions: 755
+              subdirs:
+                - name: aadir
+                - name: bdir
+              files:
+                - name: afile
+      files:
+        - name: thisisafile
+          content: "content"
+  files: []

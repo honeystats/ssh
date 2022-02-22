@@ -2,18 +2,20 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"sort"
 	"strings"
 
+	"github.com/fatih/color"
 	"gopkg.in/yaml.v2"
 )
 
-type FileLike interface {
-	GetName() string
-	GetPermissions() int
+type Describable interface {
+	Describe() string
+	DescribeSelf() string
+	PlainName() string
 }
 
 type FilesystemFile struct {
@@ -21,12 +23,16 @@ type FilesystemFile struct {
 	Content string
 }
 
-func (f FilesystemFile) GetName() string {
+func (f FilesystemFile) PlainName() string {
 	return f.Name
 }
 
-func (f FilesystemFile) GetPermissions() int {
-	return 0
+func (f FilesystemFile) Describe() string {
+	return f.DescribeSelf()
+}
+
+func (f FilesystemFile) DescribeSelf() string {
+	return f.Name
 }
 
 type FilesystemDir struct {
@@ -57,12 +63,31 @@ func (d FilesystemDir) GetFile(name string) (error, FilesystemFile) {
 	return errors.New("No file with name " + name), FilesystemFile{}
 }
 
-func (d FilesystemDir) GetName() string {
+func (d FilesystemDir) PlainName() string {
 	return d.Name
 }
 
-func (d FilesystemDir) GetPermissions() int {
-	return d.Permissions
+func (d FilesystemDir) DescribeSelf() string {
+	boldBlue := color.New(color.FgBlue, color.Bold)
+	return boldBlue.Sprint(d.Name)
+}
+
+func (d FilesystemDir) Describe() string {
+	var thingsToDescribe []Describable
+	for _, file := range d.Files {
+		thingsToDescribe = append(thingsToDescribe, file)
+	}
+	for _, dir := range d.Subdirs {
+		thingsToDescribe = append(thingsToDescribe, dir)
+	}
+	sort.Slice(thingsToDescribe, func(i, j int) bool {
+		return thingsToDescribe[i].PlainName() < thingsToDescribe[j].PlainName()
+	})
+	ret := ""
+	for _, d := range thingsToDescribe {
+		ret += d.DescribeSelf() + "  "
+	}
+	return ret
 }
 
 type FilesystemConfig struct {
@@ -78,7 +103,7 @@ func strToFilesystem(cfg []byte) FilesystemConfig {
 var FILESYSTEM FilesystemConfig
 var CURRENT_DIR = "/"
 
-func getFileAtPath(path string) FileLike {
+func getFileAtPath(path string) Describable {
 	return FilesystemFile{}
 }
 
@@ -95,11 +120,7 @@ func init() {
 	FILESYSTEM = strToFilesystem(bytes)
 }
 
-func DescribeFileLike(f FileLike) string {
-	return fmt.Sprintf("NAME: [%s] PERMS: [%d]\n", f.GetName(), f.GetPermissions())
-}
-
-func getFileOrDir(path string) (error, FileLike) {
+func getFileOrDir(path string) (error, Describable) {
 	pathParts := strings.Split(path, "/")
 	var currentDir FilesystemDir
 	currentDir = FILESYSTEM.Root
@@ -132,5 +153,5 @@ func ls(path string) (error, string) {
 	if err != nil {
 		return err, ""
 	}
-	return nil, DescribeFileLike(f)
+	return nil, f.Describe()
 }
