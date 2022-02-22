@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	gossh "golang.org/x/crypto/ssh"
 
@@ -90,6 +91,25 @@ func makePrompt(s ssh.Session) string {
 	return userAtHost + ":" + path + promptStr
 }
 
+func runCmd(cmd string) string {
+	splat := strings.Split(cmd, " ")
+	if len(splat) < 1 {
+		return ""
+	}
+	cmdName := splat[0]
+	args := cmd[len(cmdName):]
+	switch cmdName {
+	case "ls":
+		err, res := ls(args)
+		if err != nil {
+			return fmt.Sprintf("Error: %s\n", err)
+		}
+		return res
+	default:
+		return fmt.Sprintf("No such command found: %s\n", cmd)
+	}
+}
+
 func sshHandler(s ssh.Session) {
 	sendToES := func(doc SubDocument) {
 		sendToESWithCtx(s.RemoteAddr(), doc)
@@ -123,8 +143,10 @@ func sshHandler(s ssh.Session) {
 				Command: string(cmd),
 				User:    s.User(),
 			})
-			cmd = []byte{}
 			io.WriteString(s, "\n")
+			res := runCmd(string(cmd))
+			cmd = []byte{}
+			io.WriteString(s, res)
 			io.WriteString(s, makePrompt(s))
 		case '\x7f': // Backspace
 			if len(cmd) < 1 {

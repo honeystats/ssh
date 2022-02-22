@@ -153,5 +153,5 @@ func ls(path string) (error, string) {
 	if err != nil {
 		return err, ""
 	}
-	return nil, f.Describe()
+	return nil, f.Describe() + "\n"
 }
