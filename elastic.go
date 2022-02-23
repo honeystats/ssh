@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net"
 	"strings"
 
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
+	"github.com/gliderlabs/ssh"
 )
 
 var ES_CLIENT *elasticsearch.Client
@@ -19,14 +19,16 @@ func setupES() {
 	ES_CLIENT, _ = elasticsearch.NewDefaultClient()
 }
 
-func sendToESWithCtx(remoteAddr net.Addr, state *SessionState, doc SubDocument) {
-	splat := strings.Split(remoteAddr.String(), ":")
+func sendToESWithCtx(ctx ssh.Context, state *SessionState, doc SubDocument) {
+	splat := strings.Split(ctx.RemoteAddr().String(), ":")
 	toplevelDoc := SSHDoc{
 		Action:    doc.action(),
 		Cwd:       state.Cwd.Path(),
 		Passwords: state.Passwords,
 		Keys:      state.Keys,
 		Fields:    doc,
+		SessionID: ctx.SessionID(),
+		User:      ctx.User(),
 	}
 	if len(splat) == 2 {
 		toplevelDoc.SourceIP = splat[0]

@@ -36,6 +36,8 @@ type SSHDoc struct {
 	Passwords  []string    `json:"passwords"`
 	Keys       []SSHKey    `json:"keys"`
 	Fields     SubDocument `json:"fields"`
+	SessionID  string      `json:"sessionId"`
+	User       string      `json:"user"`
 }
 
 type SubDocument interface {
@@ -44,7 +46,6 @@ type SubDocument interface {
 
 type DocCommandRun struct {
 	Command string `json:"command"`
-	User    string `json:"user"`
 }
 
 func (_ DocCommandRun) action() string {
@@ -94,7 +95,7 @@ func makePrompt(s ssh.Session, state *SessionState) string {
 	return userAtHost + ":" + path + promptStr
 }
 
-func runCmd(state *SessionState, cmd string) string {
+func runCmd(ctx ssh.Context, state *SessionState, cmd string) string {
 	splat := strings.Split(cmd, " ")
 	if len(splat) < 1 {
 		return ""
@@ -118,6 +119,8 @@ func runCmd(state *SessionState, cmd string) string {
 	case "pwd":
 		path := state.Cwd.Path()
 		return fmt.Sprintf("%s\n", path)
+	case "whoami":
+		return fmt.Sprintf("%s\n", ctx.User())
 	case "#":
 		return ""
 	default:
@@ -130,7 +133,7 @@ func sshHandler(s ssh.Session) {
 	sessionId := ctx.SessionID()
 	state := sessionMap.getOrCreateById(sessionId)
 	sendToES := func(doc SubDocument) {
-		sendToESWithCtx(s.RemoteAddr(), state, doc)
+		sendToESWithCtx(ctx, state, doc)
 	}
 	reader := bufio.NewReader(s)
 	io.WriteString(s, makePrompt(s, state))
@@ -159,10 +162,9 @@ func sshHandler(s ssh.Session) {
 		case '\x0d': // Return
 			sendToES(DocCommandRun{
 				Command: string(cmd),
-				User:    s.User(),
 			})
 			io.WriteString(s, "\n")
-			res := runCmd(state, string(cmd))
+			res := runCmd(ctx, state, string(cmd))
 			cmd = []byte{}
 			io.WriteString(s, res)
 			io.WriteString(s, makePrompt(s, state))
@@ -183,7 +185,6 @@ func sshHandler(s ssh.Session) {
 			cmd = append(cmd, '^', 'C')
 			sendToES(DocCommandRun{
 				Command: string(cmd),
-				User:    s.User(),
 			})
 			io.WriteString(s, "^C\n")
 			io.WriteString(s, makePrompt(s, state))
@@ -204,7 +205,7 @@ func pubKeyHandler(ctx ssh.Context, key ssh.PublicKey) bool {
 		Key:  strKey,
 		Type: key.Type(),
 	})
-	sendToESWithCtx(ctx.RemoteAddr(), curState, DocPubkey{
+	sendToESWithCtx(ctx, curState, DocPubkey{
 		Key: strKey,
 	})
 	return false
@@ -214,7 +215,7 @@ func passwordHandler(ctx ssh.Context, password string) bool {
 	sessionId := ctx.SessionID()
 	curState := sessionMap.getOrCreateById(sessionId)
 	curState.Passwords = append(curState.Passwords, password)
-	sendToESWithCtx(ctx.RemoteAddr(), curState, DocPassword{
+	sendToESWithCtx(ctx, curState, DocPassword{
 		Password: password,
 	})
 	// return password == "ubuntu"
