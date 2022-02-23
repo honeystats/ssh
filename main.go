@@ -29,10 +29,11 @@ func init() {
 }
 
 type SSHDoc struct {
-	Action     string      `json:"action"`
-	SourceIP   string      `json:"sourceIP"`
-	SourcePort string      `json:"sourcePort"`
-	Fields     SubDocument `json:"fields"`
+	Action     string       `json:"action"`
+	SourceIP   string       `json:"sourceIP"`
+	SourcePort string       `json:"sourcePort"`
+	State      SessionState `json:"state"`
+	Fields     SubDocument  `json:"fields"`
 }
 
 type SubDocument interface {
@@ -80,13 +81,13 @@ func (_ DocPassword) action() string {
 	return "tried_password"
 }
 
-func makePrompt(s ssh.Session) string {
+func makePrompt(s ssh.Session, state SessionState) string {
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = "ubuntu"
 	}
 	userAtHost := color.HiGreenString(s.User() + "@" + hostname)
-	path := color.HiBlueString("~")
+	path := color.HiBlueString(state.Cwd.Name)
 	promptStr := color.WhiteString("$ ")
 	return userAtHost + ":" + path + promptStr
 }
@@ -113,18 +114,20 @@ func runCmd(cmd string) string {
 }
 
 func sshHandler(s ssh.Session) {
+	ctx := s.Context().(ssh.Context)
+	state := sessionMap.getOrCreateById(ctx.SessionID())
 	sendToES := func(doc SubDocument) {
-		sendToESWithCtx(s.RemoteAddr(), doc)
+		sendToESWithCtx(s.RemoteAddr(), state, doc)
 	}
 	reader := bufio.NewReader(s)
-	io.WriteString(s, makePrompt(s))
+	io.WriteString(s, makePrompt(s, state))
 	sendToES(DocLogin{
 		User: s.User(),
 	})
 	var cmd []byte = []byte{}
 	for {
 		oneByte, err := reader.ReadByte()
-		fmt.Printf("%#v\n", oneByte)
+		// fmt.Printf("%#v\n", oneByte)
 		if err != nil {
 			s.Close()
 			return
@@ -149,7 +152,7 @@ func sshHandler(s ssh.Session) {
 			res := runCmd(string(cmd))
 			cmd = []byte{}
 			io.WriteString(s, res)
-			io.WriteString(s, makePrompt(s))
+			io.WriteString(s, makePrompt(s, state))
 		case '\x7f': // Backspace
 			if len(cmd) < 1 {
 				cmd = []byte{}
@@ -170,7 +173,7 @@ func sshHandler(s ssh.Session) {
 				User:    s.User(),
 			})
 			io.WriteString(s, "^C\n")
-			io.WriteString(s, makePrompt(s))
+			io.WriteString(s, makePrompt(s, state))
 			cmd = []byte{}
 		default:
 			cmd = append(cmd, oneByte)
@@ -180,18 +183,65 @@ func sshHandler(s ssh.Session) {
 }
 
 func pubKeyHandler(ctx ssh.Context, key ssh.PublicKey) bool {
-	sendToESWithCtx(ctx.RemoteAddr(), DocPubkey{
-		Key: string(gossh.MarshalAuthorizedKey(key)),
+	strKey := string(gossh.MarshalAuthorizedKey(key))
+
+	sessionId := ctx.SessionID()
+	curState := sessionMap.getOrCreateById(sessionId)
+	curState.Keys = append(curState.Keys, SSHKey{
+		Key:  strKey,
+		Type: key.Type(),
+	})
+	sessionMap[sessionId] = curState
+	sendToESWithCtx(ctx.RemoteAddr(), curState, DocPubkey{
+		Key: strKey,
 	})
 	return false
 }
 
 func passwordHandler(ctx ssh.Context, password string) bool {
-	sendToESWithCtx(ctx.RemoteAddr(), DocPassword{
+	sessionId := ctx.SessionID()
+	curState := sessionMap.getOrCreateById(sessionId)
+	curState.Passwords = append(curState.Passwords, password)
+	sessionMap[sessionId] = curState
+	sendToESWithCtx(ctx.RemoteAddr(), curState, DocPassword{
 		Password: password,
 	})
 	// return password == "ubuntu"
 	return true
+}
+
+type SSHKey struct {
+	Key  string
+	Type string
+}
+
+type SessionState struct {
+	Cwd       FilesystemDir `json:"cwd"`
+	Passwords []string      `json:"passwords"`
+	Keys      []SSHKey      `json:"keys"`
+}
+
+// func (state SessionState) log() {
+
+// }
+
+// Map from session ID to session state
+type SessionMap map[string]SessionState
+
+var sessionMap SessionMap = SessionMap{}
+
+func (m SessionMap) getOrCreateById(id string) SessionState {
+	state, exists := m[id]
+	if exists {
+		return state
+	}
+	var newState SessionState = SessionState{
+		Cwd:       FILESYSTEM.Root,
+		Passwords: []string{},
+		Keys:      []SSHKey{},
+	}
+	m[id] = newState
+	return newState
 }
 
 func main() {

@@ -17,13 +17,13 @@ var ES_CLIENT *elasticsearch.Client
 
 func setupES() {
 	ES_CLIENT, _ = elasticsearch.NewDefaultClient()
-	log.Println(ES_CLIENT.Info())
 }
 
-func sendToESWithCtx(remoteAddr net.Addr, doc SubDocument) {
+func sendToESWithCtx(remoteAddr net.Addr, state SessionState, doc SubDocument) {
 	splat := strings.Split(remoteAddr.String(), ":")
 	toplevelDoc := SSHDoc{
 		Action: doc.action(),
+		State:  state,
 		Fields: doc,
 	}
 	if len(splat) == 2 {
