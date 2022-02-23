@@ -19,8 +19,8 @@ type Describable interface {
 }
 
 type FilesystemFile struct {
-	Name    string
-	Content string
+	Name    string `json:"name"`
+	Content string `json:"content"`
 }
 
 func (f FilesystemFile) PlainName() string {
@@ -36,13 +36,31 @@ func (f FilesystemFile) DescribeSelf() string {
 }
 
 type FilesystemDir struct {
-	Name        string
-	Permissions int
-	Subdirs     []FilesystemDir
-	Files       []FilesystemFile
+	Name        string            `json:"name"`
+	Permissions int               `json:"permissions"`
+	Subdirs     []*FilesystemDir  `json:"subdirs"`
+	Files       []*FilesystemFile `json:"files"`
+	Parent      *FilesystemDir    `json:"-"`
 }
 
-func (d FilesystemDir) GetSubdir(name string) (error, FilesystemDir) {
+func (d FilesystemDir) Path() string {
+	return d.PathHelp(false)
+}
+
+func (d FilesystemDir) PathHelp(belowRoot bool) string {
+	parent := d.Parent
+	if parent == nil {
+		if belowRoot {
+			return ""
+		} else {
+			return "/"
+		}
+	}
+
+	return parent.PathHelp(true) + "/" + d.Name
+}
+
+func (d *FilesystemDir) GetSubdir(name string) (error, *FilesystemDir) {
 	if name == "" {
 		return nil, d
 	}
@@ -51,16 +69,16 @@ func (d FilesystemDir) GetSubdir(name string) (error, FilesystemDir) {
 			return nil, subdir
 		}
 	}
-	return errors.New("No subdir with name " + name), FilesystemDir{}
+	return errors.New("No subdir with name " + name), nil
 }
 
-func (d FilesystemDir) GetFile(name string) (error, FilesystemFile) {
+func (d *FilesystemDir) GetFile(name string) (error, *FilesystemFile) {
 	for _, file := range d.Files {
 		if file.Name == name {
 			return nil, file
 		}
 	}
-	return errors.New("No file with name " + name), FilesystemFile{}
+	return errors.New("No file with name " + name), nil
 }
 
 func (d FilesystemDir) PlainName() string {
@@ -91,21 +109,25 @@ func (d FilesystemDir) Describe() string {
 }
 
 type FilesystemConfig struct {
-	Root FilesystemDir
+	Root *FilesystemDir `json:"root"`
+}
+
+func fillInParents(root *FilesystemDir) {
+	for _, subdir := range root.Subdirs {
+		subdir.Parent = root
+		fillInParents(subdir)
+	}
 }
 
 func strToFilesystem(cfg []byte) FilesystemConfig {
-	ret := FilesystemConfig{}
-	yaml.Unmarshal(cfg, &ret)
-	return ret
+	ret := &FilesystemConfig{}
+	yaml.Unmarshal(cfg, ret)
+	fillInParents(ret.Root)
+	return *ret
 }
 
 var FILESYSTEM FilesystemConfig
 var CURRENT_DIR = "/"
-
-func getFileAtPath(path string) Describable {
-	return FilesystemFile{}
-}
 
 func init() {
 	filesConfig, configSet := os.LookupEnv("FILES_CONFIG")
@@ -120,10 +142,36 @@ func init() {
 	FILESYSTEM = strToFilesystem(bytes)
 }
 
-func getFileOrDir(path string) (error, Describable) {
+func getDir(cwd *FilesystemDir, path string) (error, *FilesystemDir) {
 	pathParts := strings.Split(path, "/")
-	var currentDir FilesystemDir
-	currentDir = FILESYSTEM.Root
+	var currentDir *FilesystemDir
+	currentDir = cwd
+	if path != "" && path[0] == '/' {
+		currentDir = FILESYSTEM.Root
+	}
+	if path != "/" {
+		for i, part := range pathParts {
+			if i == 0 {
+				continue
+			}
+			err, newDir := currentDir.GetSubdir(part)
+			if err == nil {
+				currentDir = newDir
+			} else {
+				return err, nil
+			}
+		}
+	}
+	return nil, currentDir
+}
+
+func getFileOrDir(cwd *FilesystemDir, path string) (error, Describable) {
+	pathParts := strings.Split(path, "/")
+	var currentDir *FilesystemDir
+	currentDir = cwd
+	if path != "" && path[0] == '/' {
+		currentDir = FILESYSTEM.Root
+	}
 	if path != "/" {
 		for i, part := range pathParts {
 			if i == 0 {
@@ -148,10 +196,22 @@ func getFileOrDir(path string) (error, Describable) {
 	return nil, currentDir
 }
 
-func ls(path string) (error, string) {
-	err, f := getFileOrDir(path)
+func ls(cwd *FilesystemDir, path string) (error, string) {
+	err, f := getFileOrDir(cwd, path)
 	if err != nil {
 		return err, ""
 	}
 	return nil, f.Describe() + "\n"
+}
+
+func cd(cwd *FilesystemDir, path string) (error, *FilesystemDir) {
+	newPath := path
+	if path == "" {
+		newPath = "/"
+	}
+	err, dir := getDir(cwd, newPath)
+	if err != nil {
+		return err, nil
+	}
+	return nil, dir
 }

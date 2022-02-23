@@ -19,12 +19,14 @@ func setupES() {
 	ES_CLIENT, _ = elasticsearch.NewDefaultClient()
 }
 
-func sendToESWithCtx(remoteAddr net.Addr, state SessionState, doc SubDocument) {
+func sendToESWithCtx(remoteAddr net.Addr, state *SessionState, doc SubDocument) {
 	splat := strings.Split(remoteAddr.String(), ":")
 	toplevelDoc := SSHDoc{
-		Action: doc.action(),
-		State:  state,
-		Fields: doc,
+		Action:    doc.action(),
+		Cwd:       state.Cwd.Path(),
+		Passwords: state.Passwords,
+		Keys:      state.Keys,
+		Fields:    doc,
 	}
 	if len(splat) == 2 {
 		toplevelDoc.SourceIP = splat[0]
@@ -54,7 +56,7 @@ func sendToESWithCtx(remoteAddr net.Addr, state SessionState, doc SubDocument) {
 			log.Printf("Error parsing the response body: %s", err)
 		} else {
 			// Print the response status and indexed document version.
-			log.Printf("[%s] %s; version=%d", res.Status(), r["result"], int(r["_version"].(float64)))
+			// log.Printf("[%s] %s; version=%d", res.Status(), r["result"], int(r["_version"].(float64)))
 		}
 	}
 }

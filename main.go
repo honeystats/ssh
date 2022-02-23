@@ -29,11 +29,13 @@ func init() {
 }
 
 type SSHDoc struct {
-	Action     string       `json:"action"`
-	SourceIP   string       `json:"sourceIP"`
-	SourcePort string       `json:"sourcePort"`
-	State      SessionState `json:"state"`
-	Fields     SubDocument  `json:"fields"`
+	Action     string      `json:"action"`
+	SourceIP   string      `json:"sourceIP"`
+	SourcePort string      `json:"sourcePort"`
+	Cwd        string      `json:"cwd"`
+	Passwords  []string    `json:"passwords"`
+	Keys       []SSHKey    `json:"keys"`
+	Fields     SubDocument `json:"fields"`
 }
 
 type SubDocument interface {
@@ -81,18 +83,18 @@ func (_ DocPassword) action() string {
 	return "tried_password"
 }
 
-func makePrompt(s ssh.Session, state SessionState) string {
+func makePrompt(s ssh.Session, state *SessionState) string {
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = "ubuntu"
 	}
 	userAtHost := color.HiGreenString(s.User() + "@" + hostname)
-	path := color.HiBlueString(state.Cwd.Name)
+	path := color.HiBlueString(state.Cwd.Path())
 	promptStr := color.WhiteString("$ ")
 	return userAtHost + ":" + path + promptStr
 }
 
-func runCmd(cmd string) string {
+func runCmd(state *SessionState, cmd string) string {
 	splat := strings.Split(cmd, " ")
 	if len(splat) < 1 {
 		return ""
@@ -101,11 +103,21 @@ func runCmd(cmd string) string {
 	args := cmd[len(cmdName):]
 	switch cmdName {
 	case "ls":
-		err, res := ls(args)
+		err, res := ls(state.Cwd, args)
 		if err != nil {
 			return fmt.Sprintf("Error: %s\n", err)
 		}
 		return res
+	case "cd":
+		err, res := cd(state.Cwd, args)
+		if err != nil {
+			return fmt.Sprintf("Error: %s\n", err)
+		}
+		state.Cwd = res
+		return ""
+	case "pwd":
+		path := state.Cwd.Path()
+		return fmt.Sprintf("%s\n", path)
 	case "#":
 		return ""
 	default:
@@ -115,7 +127,8 @@ func runCmd(cmd string) string {
 
 func sshHandler(s ssh.Session) {
 	ctx := s.Context().(ssh.Context)
-	state := sessionMap.getOrCreateById(ctx.SessionID())
+	sessionId := ctx.SessionID()
+	state := sessionMap.getOrCreateById(sessionId)
 	sendToES := func(doc SubDocument) {
 		sendToESWithCtx(s.RemoteAddr(), state, doc)
 	}
@@ -149,7 +162,7 @@ func sshHandler(s ssh.Session) {
 				User:    s.User(),
 			})
 			io.WriteString(s, "\n")
-			res := runCmd(string(cmd))
+			res := runCmd(state, string(cmd))
 			cmd = []byte{}
 			io.WriteString(s, res)
 			io.WriteString(s, makePrompt(s, state))
@@ -191,7 +204,6 @@ func pubKeyHandler(ctx ssh.Context, key ssh.PublicKey) bool {
 		Key:  strKey,
 		Type: key.Type(),
 	})
-	sessionMap[sessionId] = curState
 	sendToESWithCtx(ctx.RemoteAddr(), curState, DocPubkey{
 		Key: strKey,
 	})
@@ -202,7 +214,6 @@ func passwordHandler(ctx ssh.Context, password string) bool {
 	sessionId := ctx.SessionID()
 	curState := sessionMap.getOrCreateById(sessionId)
 	curState.Passwords = append(curState.Passwords, password)
-	sessionMap[sessionId] = curState
 	sendToESWithCtx(ctx.RemoteAddr(), curState, DocPassword{
 		Password: password,
 	})
@@ -211,26 +222,22 @@ func passwordHandler(ctx ssh.Context, password string) bool {
 }
 
 type SSHKey struct {
-	Key  string
-	Type string
+	Key  string `json:"key"`
+	Type string `json:"type"`
 }
 
 type SessionState struct {
-	Cwd       FilesystemDir `json:"cwd"`
-	Passwords []string      `json:"passwords"`
-	Keys      []SSHKey      `json:"keys"`
+	Cwd       *FilesystemDir `json:"cwd"`
+	Passwords []string       `json:"passwords"`
+	Keys      []SSHKey       `json:"keys"`
 }
 
-// func (state SessionState) log() {
-
-// }
-
 // Map from session ID to session state
-type SessionMap map[string]SessionState
+type SessionMap map[string]*SessionState
 
 var sessionMap SessionMap = SessionMap{}
 
-func (m SessionMap) getOrCreateById(id string) SessionState {
+func (m SessionMap) getOrCreateById(id string) *SessionState {
 	state, exists := m[id]
 	if exists {
 		return state
@@ -240,8 +247,8 @@ func (m SessionMap) getOrCreateById(id string) SessionState {
 		Passwords: []string{},
 		Keys:      []SSHKey{},
 	}
-	m[id] = newState
-	return newState
+	m[id] = &newState
+	return &newState
 }
 
 func main() {

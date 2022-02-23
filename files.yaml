@@ -1,5 +1,5 @@
 root:
-  name: "/"
+  name: ""
   permissions: 755
   subdirs:
     - name: home
