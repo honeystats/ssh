@@ -105,6 +105,8 @@ func runCmd(cmd string) string {
 			return fmt.Sprintf("Error: %s\n", err)
 		}
 		return res
+	case "#":
+		return ""
 	default:
 		return fmt.Sprintf("No such command found: %s\n", cmd)
 	}
