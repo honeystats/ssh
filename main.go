@@ -104,6 +104,9 @@ func runCmd(ctx ssh.Context, state *SessionState, cmd string) string {
 	}
 	cmdName := splat[0]
 	args := cmd[len(cmdName):]
+	if len(args) > 0 && args[0] == ' ' {
+		args = args[1:]
+	}
 	switch cmdName {
 	case "ls":
 		err, res := ls(state.Cwd, args)

@@ -1,24 +1,26 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 )
 
-func assertPathEqual(t *testing.T, dir *FilesystemDir, expected string) {
-	dirPath := dir.Path()
+func assertPathEqual(t *testing.T, fd FileDir, expected string) {
+	dirPath := fd.Path()
 	if dirPath != expected {
-		t.Errorf("Dir named [%s] had path [%s], expected [%s]\n", dir.Name, dirPath, expected)
+		t.Errorf("Got path [%s], expected [%s]\n", dirPath, expected)
 	}
 }
 
 func TestPaths(t *testing.T) {
 	assertPathEqual(t, FILESYSTEM.Root, "/")
 
-	_, home := getDir(FILESYSTEM.Root, "/home")
+	err, home := getFileOrDir(FILESYSTEM.Root, "/home")
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	assertPathEqual(t, home, "/home")
-	fmt.Printf("home: %#v\n", home)
 
-	_, ubuntu := getDir(FILESYSTEM.Root, "/home/ubuntu")
+	_, ubuntu := getFileOrDir(FILESYSTEM.Root, "/home/ubuntu")
 	assertPathEqual(t, ubuntu, "/home/ubuntu")
 }

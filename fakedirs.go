@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -12,15 +13,18 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type Describable interface {
+type FileDir interface {
 	Describe() string
 	DescribeSelf() string
 	PlainName() string
+	TryCD() (error, *FilesystemDir)
+	Path() string
 }
 
 type FilesystemFile struct {
-	Name    string `json:"name"`
-	Content string `json:"content"`
+	Name    string         `json:"name"`
+	Content string         `json:"content"`
+	Parent  *FilesystemDir `json:"-"`
 }
 
 func (f FilesystemFile) PlainName() string {
@@ -33,6 +37,14 @@ func (f FilesystemFile) Describe() string {
 
 func (f FilesystemFile) DescribeSelf() string {
 	return f.Name
+}
+
+func (f FilesystemFile) Path() string {
+	return f.Parent.Path() + "/" + f.Name
+}
+
+func (f FilesystemFile) TryCD() (error, *FilesystemDir) {
+	return errors.New(fmt.Sprintf("bash: cd: %s: Not a directory", f.Name)), nil
 }
 
 type FilesystemDir struct {
@@ -91,7 +103,7 @@ func (d FilesystemDir) DescribeSelf() string {
 }
 
 func (d FilesystemDir) Describe() string {
-	var thingsToDescribe []Describable
+	var thingsToDescribe []FileDir
 	for _, file := range d.Files {
 		thingsToDescribe = append(thingsToDescribe, file)
 	}
@@ -108,6 +120,10 @@ func (d FilesystemDir) Describe() string {
 	return ret
 }
 
+func (d *FilesystemDir) TryCD() (error, *FilesystemDir) {
+	return nil, d
+}
+
 type FilesystemConfig struct {
 	Root *FilesystemDir `json:"root"`
 }
@@ -116,6 +132,9 @@ func fillInParents(root *FilesystemDir) {
 	for _, subdir := range root.Subdirs {
 		subdir.Parent = root
 		fillInParents(subdir)
+	}
+	for _, file := range root.Files {
+		file.Parent = root
 	}
 }
 
@@ -142,56 +161,56 @@ func init() {
 	FILESYSTEM = strToFilesystem(bytes)
 }
 
-func getDir(cwd *FilesystemDir, path string) (error, *FilesystemDir) {
-	pathParts := strings.Split(path, "/")
-	var currentDir *FilesystemDir
-	currentDir = cwd
-	if path != "" && path[0] == '/' {
-		currentDir = FILESYSTEM.Root
+func getFileOrDir(cwd *FilesystemDir, path string) (error, FileDir) {
+	if path == "" {
+		return nil, cwd
 	}
-	if path != "/" {
-		for i, part := range pathParts {
-			if i == 0 {
-				continue
-			}
-			err, newDir := currentDir.GetSubdir(part)
-			if err == nil {
-				currentDir = newDir
-			} else {
-				return err, nil
-			}
-		}
-	}
-	return nil, currentDir
-}
 
-func getFileOrDir(cwd *FilesystemDir, path string) (error, Describable) {
 	pathParts := strings.Split(path, "/")
-	var currentDir *FilesystemDir
-	currentDir = cwd
-	if path != "" && path[0] == '/' {
+	lenParts := len(pathParts)
+	leadingSlash := pathParts[0] == ""
+	trailingSlash := pathParts[lenParts-1] == ""
+
+	if lenParts == 0 {
+		return nil, cwd
+	}
+
+	var currentDir *FilesystemDir = cwd
+
+	if leadingSlash {
 		currentDir = FILESYSTEM.Root
 	}
-	if path != "/" {
-		for i, part := range pathParts {
-			if i == 0 {
-				continue
-			}
-			err, newDir := currentDir.GetSubdir(part)
-			if err == nil {
-				currentDir = newDir
-			} else {
-				if i == len(pathParts)-1 {
-					fileErr, file := currentDir.GetFile(part)
-					if fileErr != nil {
-						return fileErr, nil
-					}
-					return nil, file
-				} else {
-					return err, nil
-				}
-			}
+
+	for i, part := range pathParts {
+		if part == "" {
+			continue
 		}
+
+		lastSegment := i == lenParts-1
+
+		dirErr, dirRes := currentDir.GetSubdir(part)
+		if dirErr == nil {
+			currentDir = dirRes
+			continue
+		}
+
+		if (lastSegment && trailingSlash) || !lastSegment {
+			// must be a dir only
+			if dirErr != nil {
+				return dirErr, nil
+			}
+			currentDir = dirRes
+			continue
+		}
+
+		// could be a file...
+
+		fileErr, fileRes := currentDir.GetFile(part)
+		if fileErr != nil {
+			return errors.New(fmt.Sprintf("file or dir does not exist: %s", path)), nil
+		}
+
+		return nil, fileRes
 	}
 	return nil, currentDir
 }
@@ -205,13 +224,14 @@ func ls(cwd *FilesystemDir, path string) (error, string) {
 }
 
 func cd(cwd *FilesystemDir, path string) (error, *FilesystemDir) {
-	newPath := path
+	searchPath := path
 	if path == "" {
-		newPath = "/"
+		searchPath = "/"
 	}
-	err, dir := getDir(cwd, newPath)
+	err, dir := getFileOrDir(cwd, searchPath)
 	if err != nil {
 		return err, nil
 	}
-	return nil, dir
+	cdErr, cdRes := dir.TryCD()
+	return cdErr, cdRes
 }
