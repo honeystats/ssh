@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
@@ -22,6 +23,7 @@ func setupES() {
 func sendToESWithCtx(ctx ssh.Context, state *SessionState, doc SubDocument) {
 	splat := strings.Split(ctx.RemoteAddr().String(), ":")
 	toplevelDoc := SSHDoc{
+		Timestamp: time.Now(),
 		Action:    doc.action(),
 		Cwd:       state.Cwd.Path(),
 		Passwords: state.Passwords,

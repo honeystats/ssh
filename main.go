@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	gossh "golang.org/x/crypto/ssh"
 
@@ -38,6 +39,7 @@ type SSHDoc struct {
 	Fields     SubDocument `json:"fields"`
 	SessionID  string      `json:"sessionId"`
 	User       string      `json:"user"`
+	Timestamp  time.Time   `json:"@timestamp"`
 }
 
 type SubDocument interface {
