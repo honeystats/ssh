@@ -144,7 +144,7 @@ func sshHandler(s ssh.Session) {
 	sessionId := ctx.SessionID()
 	state := sessionMap.getOrCreateById(sessionId)
 	sendToES := func(doc SubDocument) {
-		sendToESWithCtx(ctx, state, doc)
+		go sendToESWithCtx(ctx, state, doc)
 	}
 	reader := bufio.NewReader(s)
 	io.WriteString(s, makePrompt(s, state))
