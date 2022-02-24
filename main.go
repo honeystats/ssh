@@ -140,6 +140,41 @@ func runCmd(ctx ssh.Context, state *SessionState, cmd string) string {
 	}
 }
 
+var commandList = []string{
+	"cd",
+	"ls",
+	"cat",
+	"pwd",
+	"whoami",
+}
+
+func tabCompleteFile(state *SessionState, partialFile string) string {
+	return ""
+}
+
+func tabCompleteCmd(state *SessionState, partialCmd string) string {
+	if partialCmd == "" {
+		return ""
+	}
+	for _, validCommand := range commandList {
+		if strings.HasPrefix(validCommand, partialCmd) {
+			restOfCmd := strings.TrimPrefix(validCommand, partialCmd)
+			return restOfCmd + " "
+		}
+	}
+	return partialCmd
+}
+
+func tabComplete(state *SessionState, cmd string) string {
+	parts := strings.Split(cmd, " ")
+	numParts := len(parts)
+	if numParts == 1 {
+		return tabCompleteCmd(state, parts[0])
+	} else {
+		return strings.Join(parts[0:numParts-2], " ") + tabCompleteFile(state, parts[numParts-1])
+	}
+}
+
 func sshHandler(s ssh.Session) {
 	ctx := s.Context().(ssh.Context)
 	sessionId := ctx.SessionID()
@@ -187,6 +222,10 @@ func sshHandler(s ssh.Session) {
 			}
 			cmd = cmd[0 : len(cmd)-1]
 			io.WriteString(s, "\x08 \x08")
+		case '\t':
+			res := tabComplete(state, string(cmd))
+			cmd = append(cmd, res...)
+			io.WriteString(s, res)
 		case '\x1b': // Arrow Key Escape 1
 		case '\x5b': // Arrow Key Escape 2
 		case '\x41': // Arrow Key
