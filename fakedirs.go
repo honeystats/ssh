@@ -291,11 +291,36 @@ func cd(cwd *FilesystemDir, path string) (error, *FilesystemDir) {
 	return cdErr, cdRes
 }
 
-func cat(cwd *FilesystemDir, path string) (error, string) {
-	catPath := strings.Trim(path, " ")
-	err, f := getFileOrDir(cwd, catPath)
+func catOne(cwd *FilesystemDir, path string) (error, string) {
+	err, f := getFileOrDir(cwd, path)
 	if err != nil {
 		return err, ""
 	}
 	return f.TryCat()
+}
+
+func cat(cwd *FilesystemDir, path string) (error, string) {
+	trimmedPath := strings.Trim(path, " ")
+	parts := strings.Split(trimmedPath, " ")
+	errs := []string{}
+	reses := []string{}
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		err, res := catOne(cwd, part)
+		if err != nil {
+			errs = append(errs, err.Error())
+		} else {
+			reses = append(reses, res)
+		}
+	}
+	resText := ""
+	for _, err := range errs {
+		resText += "cat: " + err + "\n"
+	}
+	for _, res := range reses {
+		resText += res
+	}
+	return nil, resText
 }
