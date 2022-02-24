@@ -107,6 +107,9 @@ func runCmd(ctx ssh.Context, state *SessionState, cmd string) string {
 	if len(args) > 0 && args[0] == ' ' {
 		args = args[1:]
 	}
+	if strings.HasPrefix(cmdName, "#") {
+		return ""
+	}
 	switch cmdName {
 	case "ls":
 		err, res := ls(state.Cwd, args)
@@ -132,8 +135,6 @@ func runCmd(ctx ssh.Context, state *SessionState, cmd string) string {
 		return fmt.Sprintf("%s\n", path)
 	case "whoami":
 		return fmt.Sprintf("%s\n", ctx.User())
-	case "#":
-		return ""
 	default:
 		return fmt.Sprintf("No such command found: %s\n", cmd)
 	}
