@@ -14,13 +14,13 @@ func assertPathEqual(t *testing.T, fd FileDir, expected string) {
 func TestPaths(t *testing.T) {
 	assertPathEqual(t, FILESYSTEM.Root, "/")
 
-	err, home := getFileOrDir(FILESYSTEM.Root, "/home")
+	err, home := FILESYSTEM.Root.getFileOrDir("/home")
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	assertPathEqual(t, home, "/home")
 
-	_, ubuntu := getFileOrDir(FILESYSTEM.Root, "/home/ubuntu")
+	_, ubuntu := FILESYSTEM.Root.getFileOrDir("/home/ubuntu")
 	assertPathEqual(t, ubuntu, "/home/ubuntu")
 }
