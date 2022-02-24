@@ -196,14 +196,25 @@ func tabCompleteFile(state *SessionState, partialFile string) (string, bool) {
 }
 
 func tabCompleteCmd(state *SessionState, partialCmd string) (string, bool) {
-	if partialCmd == "" {
-		return "", false
-	}
+	one := false
+	multiple := false
+	last := ""
+	allValid := []string{}
 	for _, validCommand := range commandList {
 		if strings.HasPrefix(validCommand, partialCmd) {
-			restOfCmd := strings.TrimPrefix(validCommand, partialCmd)
-			return restOfCmd + " ", false
+			if one == true {
+				multiple = true
+			}
+			one = true
+			last = strings.TrimPrefix(validCommand, partialCmd)
+			allValid = append(allValid, validCommand)
 		}
+	}
+	if one && !multiple {
+		return last + " ", false
+	}
+	if multiple {
+		return strings.Join(allValid, " "), true
 	}
 	return "", false
 }
