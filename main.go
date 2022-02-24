@@ -150,8 +150,19 @@ var commandList = []string{
 
 func tabCompleteFile(state *SessionState, partialFile string) string {
 	startDir := state.Cwd
+	searchFile := partialFile
 	if strings.HasPrefix(partialFile, "/") {
 		startDir = FILESYSTEM.Root
+	}
+	lastSlash := strings.LastIndex(partialFile, "/")
+	if lastSlash > 0 {
+		dirPath := partialFile[0 : lastSlash+1]
+		err, res := startDir.getFileOrDir(dirPath)
+		if err != nil {
+			return ""
+		}
+		startDir = res.(*FilesystemDir)
+		searchFile = partialFile[lastSlash+1:]
 	}
 	validFileComplete := []string{}
 	for _, file := range startDir.Files {
@@ -161,8 +172,8 @@ func tabCompleteFile(state *SessionState, partialFile string) string {
 		validFileComplete = append(validFileComplete, dir.TabcompleteName())
 	}
 	for _, validFileDir := range validFileComplete {
-		if strings.HasPrefix(validFileDir, partialFile) {
-			restOfCmd := strings.TrimPrefix(validFileDir, partialFile)
+		if strings.HasPrefix(validFileDir, searchFile) {
+			restOfCmd := strings.TrimPrefix(validFileDir, searchFile)
 			return restOfCmd
 		}
 	}

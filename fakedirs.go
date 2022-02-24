@@ -186,7 +186,7 @@ func init() {
 	FILESYSTEM = strToFilesystem(bytes)
 }
 
-func getFileOrDir(cwd *FilesystemDir, path string) (error, FileDir) {
+func (cwd *FilesystemDir) getFileOrDir(path string) (error, FileDir) {
 	if path == "" {
 		return nil, cwd
 	}
@@ -241,7 +241,7 @@ func getFileOrDir(cwd *FilesystemDir, path string) (error, FileDir) {
 }
 
 func lsOne(cwd *FilesystemDir, path string) (error, string) {
-	err, f := getFileOrDir(cwd, path)
+	err, f := cwd.getFileOrDir(path)
 	if err != nil {
 		return err, ""
 	}
@@ -283,7 +283,7 @@ func cd(cwd *FilesystemDir, path string) (error, *FilesystemDir) {
 	if trimmedPath == "" {
 		searchPath = "/"
 	}
-	err, dir := getFileOrDir(cwd, searchPath)
+	err, dir := cwd.getFileOrDir(searchPath)
 	if err != nil {
 		return err, nil
 	}
@@ -292,7 +292,7 @@ func cd(cwd *FilesystemDir, path string) (error, *FilesystemDir) {
 }
 
 func catOne(cwd *FilesystemDir, path string) (error, string) {
-	err, f := getFileOrDir(cwd, path)
+	err, f := cwd.getFileOrDir(path)
 	if err != nil {
 		return err, ""
 	}
