@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/gliderlabs/ssh"
+	"github.com/sirupsen/logrus"
 )
 
 var PORT_NUM string
@@ -20,12 +20,12 @@ var PORT_NUM string
 func init() {
 	_, urlSet := os.LookupEnv("ELASTICSEARCH_URL")
 	if !urlSet {
-		panic("ELASTICSEARCH_URL is not set.")
+		logrus.Fatalln("ELASTICSEARCH_URL is not set.")
 	}
 	var portSet bool
 	PORT_NUM, portSet = os.LookupEnv("PORT")
 	if !portSet {
-		panic("PORT is not set.")
+		logrus.Fatalln("PORT is not set.")
 	}
 }
 
@@ -230,6 +230,7 @@ func tabComplete(state *SessionState, cmd string) (string, bool) {
 }
 
 func sshHandler(s ssh.Session) {
+	logrus.Infoln("SSH session opened")
 	ctx := s.Context().(ssh.Context)
 	sessionId := ctx.SessionID()
 	state := sessionMap.getOrCreateById(sessionId)
@@ -244,7 +245,7 @@ func sshHandler(s ssh.Session) {
 	var cmd []byte = []byte{}
 	for {
 		oneByte, err := reader.ReadByte()
-		// fmt.Printf("%#v\n", oneByte)
+		logrus.Debugf("%#v\n", oneByte)
 		if err != nil {
 			s.Close()
 			return
@@ -370,5 +371,6 @@ func main() {
 		PasswordHandler:  passwordHandler,
 	}
 	srv.Version = "OpenSSH_8.4p1 Ubuntu-6ubuntu2.1"
-	log.Fatal(srv.ListenAndServe())
+	logrus.Infoln("Waiting for SSH connections...")
+	logrus.Fatalln(srv.ListenAndServe())
 }

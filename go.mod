@@ -6,6 +6,7 @@ require (
 	github.com/elastic/go-elasticsearch/v7 v7.17.0
 	github.com/fatih/color v1.13.0
 	github.com/gliderlabs/ssh v0.3.3
+	github.com/sirupsen/logrus v1.8.1
 	golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e
-	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v2 v2.4.0
 )

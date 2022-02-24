@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 	"github.com/gliderlabs/ssh"
+	"github.com/sirupsen/logrus"
 )
 
 var ES_CLIENT *elasticsearch.Client
@@ -38,7 +38,7 @@ func sendToESWithCtx(ctx ssh.Context, state *SessionState, doc SubDocument) {
 	}
 	docBytes, err := json.Marshal(toplevelDoc)
 	if err != nil {
-		fmt.Println("there was an error marshalling the document to JSON")
+		logrus.Errorln("there was an error marshalling an ES document to JSON")
 		return
 	}
 	req := esapi.IndexRequest{
@@ -52,15 +52,15 @@ func sendToESWithCtx(ctx ssh.Context, state *SessionState, doc SubDocument) {
 	}
 	defer res.Body.Close()
 	if res.IsError() {
-		log.Printf("[%s] Error indexing document", res.Status())
+		logrus.Errorf("[%s] Error indexing document\n", res.Status())
 	} else {
 		// Deserialize the response into a map.
 		var r map[string]interface{}
 		if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
-			log.Printf("Error parsing the response body: %s", err)
+			logrus.Errorf("Error parsing the response body: %s\n", err)
 		} else {
 			// Print the response status and indexed document version.
-			// log.Printf("[%s] %s; version=%d", res.Status(), r["result"], int(r["_version"].(float64)))
+			logrus.Debugf("ES Document index status: [%s] %s; version=%d\n", res.Status(), r["result"], int(r["_version"].(float64)))
 		}
 	}
 }
