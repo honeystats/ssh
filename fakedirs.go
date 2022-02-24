@@ -17,6 +17,7 @@ type FileDir interface {
 	Describe() string
 	DescribeSelf() string
 	PlainName() string
+	TabcompleteName() string
 	TryCD() (error, *FilesystemDir)
 	TryCat() (error, string)
 	Path() string
@@ -30,6 +31,10 @@ type FilesystemFile struct {
 
 func (f FilesystemFile) PlainName() string {
 	return f.Name
+}
+
+func (f FilesystemFile) TabcompleteName() string {
+	return f.Name + " "
 }
 
 func (f FilesystemFile) Describe() string {
@@ -106,6 +111,10 @@ func (d *FilesystemDir) GetFile(name string) (error, *FilesystemFile) {
 
 func (d FilesystemDir) PlainName() string {
 	return d.Name
+}
+
+func (d FilesystemDir) TabcompleteName() string {
+	return d.Name + "/"
 }
 
 func (d FilesystemDir) DescribeSelf() string {
@@ -223,7 +232,7 @@ func getFileOrDir(cwd *FilesystemDir, path string) (error, FileDir) {
 
 		fileErr, fileRes := currentDir.GetFile(part)
 		if fileErr != nil {
-			return errors.New(fmt.Sprintf("file or dir does not exist: %s", path)), nil
+			return errors.New(fmt.Sprintf("cannot access '%s': No such file or directory", path)), nil
 		}
 
 		return nil, fileRes
@@ -231,7 +240,7 @@ func getFileOrDir(cwd *FilesystemDir, path string) (error, FileDir) {
 	return nil, currentDir
 }
 
-func ls(cwd *FilesystemDir, path string) (error, string) {
+func lsOne(cwd *FilesystemDir, path string) (error, string) {
 	err, f := getFileOrDir(cwd, path)
 	if err != nil {
 		return err, ""
@@ -239,9 +248,39 @@ func ls(cwd *FilesystemDir, path string) (error, string) {
 	return nil, f.Describe() + "\n"
 }
 
+func ls(cwd *FilesystemDir, path string) (error, string) {
+	trimmedPath := strings.Trim(path, " ")
+	if trimmedPath == "" {
+		return lsOne(cwd, "")
+	}
+	parts := strings.Split(trimmedPath, " ")
+	errs := []string{}
+	reses := []string{}
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		err, res := lsOne(cwd, part)
+		if err != nil {
+			errs = append(errs, err.Error())
+		} else {
+			reses = append(reses, res)
+		}
+	}
+	resText := ""
+	for _, err := range errs {
+		resText += "ls: " + err + "\n"
+	}
+	for _, res := range reses {
+		resText += res
+	}
+	return nil, resText
+}
+
 func cd(cwd *FilesystemDir, path string) (error, *FilesystemDir) {
-	searchPath := path
-	if path == "" {
+	trimmedPath := strings.Trim(path, " ")
+	searchPath := trimmedPath
+	if trimmedPath == "" {
 		searchPath = "/"
 	}
 	err, dir := getFileOrDir(cwd, searchPath)
@@ -253,7 +292,8 @@ func cd(cwd *FilesystemDir, path string) (error, *FilesystemDir) {
 }
 
 func cat(cwd *FilesystemDir, path string) (error, string) {
-	err, f := getFileOrDir(cwd, path)
+	catPath := strings.Trim(path, " ")
+	err, f := getFileOrDir(cwd, catPath)
 	if err != nil {
 		return err, ""
 	}
