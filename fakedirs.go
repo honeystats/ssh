@@ -18,6 +18,7 @@ type FileDir interface {
 	DescribeSelf() string
 	PlainName() string
 	TryCD() (error, *FilesystemDir)
+	TryCat() (error, string)
 	Path() string
 }
 
@@ -45,6 +46,10 @@ func (f FilesystemFile) Path() string {
 
 func (f FilesystemFile) TryCD() (error, *FilesystemDir) {
 	return errors.New(fmt.Sprintf("bash: cd: %s: Not a directory", f.Name)), nil
+}
+
+func (f FilesystemFile) TryCat() (error, string) {
+	return nil, f.Content
 }
 
 type FilesystemDir struct {
@@ -128,6 +133,10 @@ func (d FilesystemDir) Describe() string {
 
 func (d *FilesystemDir) TryCD() (error, *FilesystemDir) {
 	return nil, d
+}
+
+func (d FilesystemDir) TryCat() (error, string) {
+	return errors.New(fmt.Sprintf("cat: %s: Is a directory", d.Name)), ""
 }
 
 type FilesystemConfig struct {
@@ -241,4 +250,12 @@ func cd(cwd *FilesystemDir, path string) (error, *FilesystemDir) {
 	}
 	cdErr, cdRes := dir.TryCD()
 	return cdErr, cdRes
+}
+
+func cat(cwd *FilesystemDir, path string) (error, string) {
+	err, f := getFileOrDir(cwd, path)
+	if err != nil {
+		return err, ""
+	}
+	return f.TryCat()
 }

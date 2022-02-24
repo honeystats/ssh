@@ -9,7 +9,8 @@ root:
           permissions: 755
           files:
             - name: secret
-              content: "This is a secret"
+              content: |
+                This is a secret!
           subdirs:
             - name: example
               permissions: 755
@@ -20,5 +21,6 @@ root:
                 - name: afile
       files:
         - name: thisisafile
-          content: "content"
+          content: |
+            content
   files: []

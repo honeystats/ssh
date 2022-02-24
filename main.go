@@ -121,6 +121,12 @@ func runCmd(ctx ssh.Context, state *SessionState, cmd string) string {
 		}
 		state.Cwd = res
 		return ""
+	case "cat":
+		err, res := cat(state.Cwd, args)
+		if err != nil {
+			return fmt.Sprintf("%s\n", err)
+		}
+		return res
 	case "pwd":
 		path := state.Cwd.Path()
 		return fmt.Sprintf("%s\n", path)
