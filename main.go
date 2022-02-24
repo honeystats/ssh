@@ -148,7 +148,8 @@ var commandList = []string{
 	"whoami",
 }
 
-func tabCompleteFile(state *SessionState, partialFile string) string {
+// Returns string to print and whether to repopulate (if there were conflicts)
+func tabCompleteFile(state *SessionState, partialFile string) (string, bool) {
 	startDir := state.Cwd
 	searchFile := partialFile
 	if strings.HasPrefix(partialFile, "/") {
@@ -159,7 +160,7 @@ func tabCompleteFile(state *SessionState, partialFile string) string {
 		dirPath := partialFile[0 : lastSlash+1]
 		err, res := startDir.getFileOrDir(dirPath)
 		if err != nil {
-			return ""
+			return "", false
 		}
 		startDir = res.(*FilesystemDir)
 		searchFile = partialFile[lastSlash+1:]
@@ -174,6 +175,7 @@ func tabCompleteFile(state *SessionState, partialFile string) string {
 	one := false
 	multiple := false
 	last := ""
+	allValid := []string{}
 	for _, validFileDir := range validFileComplete {
 		if strings.HasPrefix(validFileDir, searchFile) {
 			if one == true {
@@ -181,31 +183,32 @@ func tabCompleteFile(state *SessionState, partialFile string) string {
 			}
 			one = true
 			last = strings.TrimPrefix(validFileDir, searchFile)
+			allValid = append(allValid, validFileDir)
 		}
 	}
 	if one && !multiple {
-		return last
+		return last, false
 	}
 	if multiple {
-		return ""
+		return strings.Join(allValid, " "), true
 	}
-	return ""
+	return "", false
 }
 
-func tabCompleteCmd(state *SessionState, partialCmd string) string {
+func tabCompleteCmd(state *SessionState, partialCmd string) (string, bool) {
 	if partialCmd == "" {
-		return ""
+		return "", false
 	}
 	for _, validCommand := range commandList {
 		if strings.HasPrefix(validCommand, partialCmd) {
 			restOfCmd := strings.TrimPrefix(validCommand, partialCmd)
-			return restOfCmd + " "
+			return restOfCmd + " ", false
 		}
 	}
-	return ""
+	return "", false
 }
 
-func tabComplete(state *SessionState, cmd string) string {
+func tabComplete(state *SessionState, cmd string) (string, bool) {
 	parts := strings.Split(cmd, " ")
 	numParts := len(parts)
 	if numParts == 1 {
@@ -263,9 +266,13 @@ func sshHandler(s ssh.Session) {
 			cmd = cmd[0 : len(cmd)-1]
 			io.WriteString(s, "\x08 \x08")
 		case '\t':
-			res := tabComplete(state, string(cmd))
-			cmd = append(cmd, res...)
-			io.WriteString(s, res)
+			res, repop := tabComplete(state, string(cmd))
+			if repop {
+				io.WriteString(s, "\n"+res+"\n"+makePrompt(s, state)+string(cmd))
+			} else {
+				cmd = append(cmd, res...)
+				io.WriteString(s, res)
+			}
 		case '\x1b': // Arrow Key Escape 1
 		case '\x5b': // Arrow Key Escape 2
 		case '\x41': // Arrow Key
