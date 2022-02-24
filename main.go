@@ -168,14 +168,26 @@ func tabCompleteFile(state *SessionState, partialFile string) string {
 	for _, file := range startDir.Files {
 		validFileComplete = append(validFileComplete, file.TabcompleteName())
 	}
-	for _, dir := range state.Cwd.Subdirs {
+	for _, dir := range startDir.Subdirs {
 		validFileComplete = append(validFileComplete, dir.TabcompleteName())
 	}
+	one := false
+	multiple := false
+	last := ""
 	for _, validFileDir := range validFileComplete {
 		if strings.HasPrefix(validFileDir, searchFile) {
-			restOfCmd := strings.TrimPrefix(validFileDir, searchFile)
-			return restOfCmd
+			if one == true {
+				multiple = true
+			}
+			one = true
+			last = strings.TrimPrefix(validFileDir, searchFile)
 		}
+	}
+	if one && !multiple {
+		return last
+	}
+	if multiple {
+		return ""
 	}
 	return ""
 }
