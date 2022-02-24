@@ -59,9 +59,9 @@ func (d FilesystemDir) Path() string {
 	return d.PathHelp(false)
 }
 
-func (d FilesystemDir) PathHelp(belowRoot bool) string {
+func (d *FilesystemDir) PathHelp(belowRoot bool) string {
 	parent := d.Parent
-	if parent == nil {
+	if parent == d {
 		if belowRoot {
 			return ""
 		} else {
@@ -75,6 +75,12 @@ func (d FilesystemDir) PathHelp(belowRoot bool) string {
 func (d *FilesystemDir) GetSubdir(name string) (error, *FilesystemDir) {
 	if name == "" {
 		return nil, d
+	}
+	if name == "." {
+		return nil, d
+	}
+	if name == ".." {
+		return nil, d.Parent
 	}
 	for _, subdir := range d.Subdirs {
 		if subdir.Name == name {
@@ -141,6 +147,7 @@ func fillInParents(root *FilesystemDir) {
 func strToFilesystem(cfg []byte) FilesystemConfig {
 	ret := &FilesystemConfig{}
 	yaml.Unmarshal(cfg, ret)
+	ret.Root.Parent = ret.Root
 	fillInParents(ret.Root)
 	return *ret
 }
