@@ -136,7 +136,7 @@ func runCmd(ctx ssh.Context, state *SessionState, cmd string) string {
 	case "whoami":
 		return fmt.Sprintf("%s\n", ctx.User())
 	default:
-		return fmt.Sprintf("No such command found: %s\n", cmd)
+		return fmt.Sprintf("command not found: %s\n", cmd)
 	}
 }
 

@@ -269,7 +269,7 @@ func ls(cwd *FilesystemDir, path string) (error, string) {
 	}
 	resText := ""
 	for _, err := range errs {
-		resText += "ls: " + err + "\n"
+		resText += fmt.Sprintf("ls: %s\n", err)
 	}
 	for _, res := range reses {
 		resText += res
@@ -317,7 +317,7 @@ func cat(cwd *FilesystemDir, path string) (error, string) {
 	}
 	resText := ""
 	for _, err := range errs {
-		resText += "cat: " + err + "\n"
+		resText += fmt.Sprintf("cat: %s\n", err)
 	}
 	for _, res := range reses {
 		resText += res
