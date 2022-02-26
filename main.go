@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -365,11 +366,22 @@ func (m SessionMap) getOrCreateById(id string) *SessionState {
 
 func main() {
 	setupES()
+	key, err := genHostKey()
+	if err != nil {
+		log.Fatalln("Error generating private key")
+	}
+	hostKeySigner, err := gossh.NewSignerFromKey(key)
+	if err != nil {
+		log.Fatalln("Error generating host key signer")
+	}
 	srv := &ssh.Server{
 		Addr:             ":" + PORT_NUM,
 		Handler:          sshHandler,
 		PublicKeyHandler: pubKeyHandler,
 		PasswordHandler:  passwordHandler,
+		HostSigners: []ssh.Signer{
+			hostKeySigner,
+		},
 	}
 	srv.Version = "OpenSSH_8.4p1 Ubuntu-6ubuntu2.1"
 	logrus.Infoln("Waiting for SSH connections...")
