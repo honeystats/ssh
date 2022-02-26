@@ -154,6 +154,7 @@ func tabCompleteFile(state *SessionState, partialFile string) (string, bool) {
 	searchFile := partialFile
 	if strings.HasPrefix(partialFile, "/") {
 		startDir = FILESYSTEM.Root
+		searchFile = strings.TrimPrefix(partialFile, "/")
 	}
 	lastSlash := strings.LastIndex(partialFile, "/")
 	if lastSlash > 0 {
