@@ -87,11 +87,16 @@ func (_ DocPassword) action() string {
 	return "tried_password"
 }
 
-func makePrompt(s ssh.Session, state *SessionState) string {
+func hostnameOrDefault() string {
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = "ubuntu"
 	}
+	return hostname
+}
+
+func makePrompt(s ssh.Session, state *SessionState) string {
+	hostname := hostnameOrDefault()
 	userAtHost := color.HiGreenString(s.User() + "@" + hostname)
 	path := color.HiBlueString(state.Cwd.Path())
 	promptStr := color.WhiteString("$ ")
@@ -366,7 +371,8 @@ func (m SessionMap) getOrCreateById(id string) *SessionState {
 
 func main() {
 	setupES()
-	key, err := genHostKey()
+	hostname := hostnameOrDefault()
+	key, err := genHostKey(hostname)
 	if err != nil {
 		log.Fatalln("Error generating private key")
 	}
@@ -382,8 +388,8 @@ func main() {
 		HostSigners: []ssh.Signer{
 			hostKeySigner,
 		},
+		Version: "OpenSSH_8.4p1 Ubuntu-6ubuntu2.1",
 	}
-	srv.Version = "OpenSSH_8.4p1 Ubuntu-6ubuntu2.1"
 	logrus.Infoln("Waiting for SSH connections...")
 	logrus.Fatalln(srv.ListenAndServe())
 }
