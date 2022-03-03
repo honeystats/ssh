@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"log"
 	"strings"
 	"time"
 
@@ -48,7 +47,7 @@ func sendToESWithCtx(ctx ssh.Context, state *SessionState, doc SubDocument) {
 	}
 	res, err := req.Do(context.Background(), ES_CLIENT)
 	if err != nil {
-		log.Fatalf("Error getting response: %s", err)
+		logrus.Fatalf("Error getting response: %s", err)
 	}
 	defer res.Body.Close()
 	if res.IsError() {
