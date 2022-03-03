@@ -32,6 +32,11 @@ func init() {
 	})
 	_ = envOrFatal("ELASTICSEARCH_URL")
 	PORT_NUM = envOrFatal("PORT")
+
+	_, debugSet := os.LookupEnv("DEBUG")
+	if debugSet {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
 }
 
 type SSHDoc struct {
