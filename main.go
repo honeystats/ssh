@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -19,6 +18,10 @@ import (
 var PORT_NUM string
 
 func init() {
+	logrus.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+		PadLevelText:  true,
+	})
 	_, urlSet := os.LookupEnv("ELASTICSEARCH_URL")
 	if !urlSet {
 		logrus.Fatalln("ELASTICSEARCH_URL is not set.")
@@ -374,11 +377,11 @@ func main() {
 	hostname := hostnameOrDefault()
 	key, err := genHostKey(hostname)
 	if err != nil {
-		log.Fatalln("Error generating private key")
+		logrus.Fatalln("Error generating private key")
 	}
 	hostKeySigner, err := gossh.NewSignerFromKey(key)
 	if err != nil {
-		log.Fatalln("Error generating host key signer")
+		logrus.Fatalln("Error generating host key signer")
 	}
 	srv := &ssh.Server{
 		Addr:             ":" + PORT_NUM,
