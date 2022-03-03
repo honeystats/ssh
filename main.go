@@ -128,6 +128,8 @@ func runCmd(ctx ssh.Context, state *SessionState, cmd string) string {
 	switch cmdName {
 	case "":
 		return ""
+	case "clear":
+		return "\033c"
 	case "ls":
 		err, res := ls(state.Cwd, args)
 		if err != nil {
@@ -158,9 +160,10 @@ func runCmd(ctx ssh.Context, state *SessionState, cmd string) string {
 }
 
 var commandList = []string{
-	"cd",
-	"ls",
 	"cat",
+	"cd",
+	"clear",
+	"ls",
 	"pwd",
 	"whoami",
 }
@@ -279,6 +282,10 @@ func sshHandler(s ssh.Session) {
 			io.WriteString(s, "logout\n")
 			s.Close()
 			return
+		case '\x0c': // Ctrl+L
+			res := runCmd(ctx, state, "clear")
+			io.WriteString(s, res)
+			io.WriteString(s, makePrompt(s, state))
 		case '\x0d': // Return
 			sendToES(DocCommandRun{
 				Command: string(cmd),
