@@ -4,12 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"sort"
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
@@ -181,7 +181,10 @@ func init() {
 
 	bytes, err := ioutil.ReadFile(filesConfig)
 	if err != nil {
-		log.Panic(err)
+		logrus.WithFields(logrus.Fields{
+			"filesConfig": filesConfig,
+			"err":         err,
+		}).Fatal("Error reading FILES_CONFIG")
 	}
 	FILESYSTEM = strToFilesystem(bytes)
 }
