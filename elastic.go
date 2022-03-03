@@ -41,9 +41,10 @@ func sendToESWithCtx(ctx ssh.Context, state *SessionState, doc SubDocument) {
 		return
 	}
 	req := esapi.IndexRequest{
-		Index:   "sshdev-index",
-		Body:    bytes.NewReader(docBytes),
-		Refresh: "true",
+		Index:    "sshdev-index",
+		Body:     bytes.NewReader(docBytes),
+		Refresh:  "true",
+		Pipeline: "geoip",
 	}
 	res, err := req.Do(context.Background(), ES_CLIENT)
 	if err != nil {
