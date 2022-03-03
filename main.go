@@ -163,6 +163,7 @@ var commandList = []string{
 	"cat",
 	"cd",
 	"clear",
+	"exit",
 	"ls",
 	"pwd",
 	"whoami",
@@ -271,16 +272,19 @@ func sshHandler(s ssh.Session) {
 			s.Close()
 			return
 		}
+		doLogout := func() {
+			sendToES(DocLogout{
+				User: s.User(),
+			})
+			s.Close()
+		}
 		switch oneByte {
 		case '\x04': // Ctrl+D / EOF
 			if len(cmd) != 0 {
 				continue
 			}
-			sendToES(DocLogout{
-				User: s.User(),
-			})
 			io.WriteString(s, "logout\n")
-			s.Close()
+			doLogout()
 			return
 		case '\x0c': // Ctrl+L
 			res := runCmd(ctx, state, "clear")
@@ -292,6 +296,10 @@ func sshHandler(s ssh.Session) {
 			})
 			io.WriteString(s, "\n")
 			res := runCmd(ctx, state, string(cmd))
+			if string(cmd) == "exit" || strings.HasPrefix(string(cmd), "exit ") {
+				doLogout()
+				return
+			}
 			cmd = []byte{}
 			io.WriteString(s, res)
 			io.WriteString(s, makePrompt(s, state))
