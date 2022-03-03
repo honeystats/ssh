@@ -17,20 +17,21 @@ import (
 
 var PORT_NUM string
 
+func envOrFatal(envName string) string {
+	val, wasSet := os.LookupEnv(envName)
+	if !wasSet {
+		logrus.Fatalf("Environment variable missing: $%s", envName)
+	}
+	return val
+}
+
 func init() {
 	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
 		PadLevelText:  true,
 	})
-	_, urlSet := os.LookupEnv("ELASTICSEARCH_URL")
-	if !urlSet {
-		logrus.Fatalln("ELASTICSEARCH_URL is not set.")
-	}
-	var portSet bool
-	PORT_NUM, portSet = os.LookupEnv("PORT")
-	if !portSet {
-		logrus.Fatalln("PORT is not set.")
-	}
+	_ = envOrFatal("ELASTICSEARCH_URL")
+	PORT_NUM = envOrFatal("PORT")
 }
 
 type SSHDoc struct {
@@ -377,11 +378,12 @@ func main() {
 	hostname := hostnameOrDefault()
 	key, err := genHostKey(hostname)
 	if err != nil {
-		logrus.Fatalln("Error generating private key")
+		logrus.WithError(err).Fatal("Error generating private key")
 	}
 	hostKeySigner, err := gossh.NewSignerFromKey(key)
+
 	if err != nil {
-		logrus.Fatalln("Error generating host key signer")
+		logrus.WithError(err).Fatal("Error generating host key signer")
 	}
 	srv := &ssh.Server{
 		Addr:             ":" + PORT_NUM,
