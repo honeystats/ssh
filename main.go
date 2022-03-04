@@ -252,10 +252,13 @@ func tabComplete(state *SessionState, cmd string) (string, bool) {
 }
 
 func sshHandler(s ssh.Session) {
-	logrus.Infoln("SSH session opened")
 	ctx := s.Context().(ssh.Context)
 	sessionId := ctx.SessionID()
 	state := sessionMap.getOrCreateById(sessionId)
+	logrus.WithFields(logrus.Fields{
+		"user": s.User(),
+		"id":   sessionId,
+	}).Infoln("SSH session opened")
 	sendToES := func(doc SubDocument) {
 		go sendToESWithCtx(ctx, state, doc)
 	}
@@ -273,6 +276,10 @@ func sshHandler(s ssh.Session) {
 			return
 		}
 		doLogout := func() {
+			logrus.WithFields(logrus.Fields{
+				"user": s.User(),
+				"id":   sessionId,
+			}).Infoln("SSH session closed")
 			sendToES(DocLogout{
 				User: s.User(),
 			})
