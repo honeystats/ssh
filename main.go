@@ -25,6 +25,8 @@ func envOrFatal(envName string) string {
 	return val
 }
 
+var DEBUG = false
+
 func init() {
 	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
@@ -35,6 +37,7 @@ func init() {
 
 	_, debugSet := os.LookupEnv("DEBUG")
 	if debugSet {
+		DEBUG = true
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 }

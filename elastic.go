@@ -35,6 +35,9 @@ func sendToESWithCtx(ctx ssh.Context, state *SessionState, doc SubDocument) {
 		toplevelDoc.SourceIP = splat[0]
 		toplevelDoc.SourcePort = splat[1]
 	}
+	if DEBUG {
+		toplevelDoc.SourceIP = randSourceIP()
+	}
 	docBytes, err := json.Marshal(toplevelDoc)
 	if err != nil {
 		logrus.Errorln("there was an error marshalling an ES document to JSON")
