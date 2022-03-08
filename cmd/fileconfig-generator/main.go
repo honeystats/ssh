@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -57,8 +58,16 @@ func realPathToConfig(path string) (*files.FilesystemConfig, error) {
 	}, nil
 }
 
+var pathToLookup string
+
 func main() {
-	conf, err := realPathToConfig("/home/kyle/Downloads/example")
+	flag.StringVar(&pathToLookup, "source-path", "", "path from which to generate the YAML file")
+	flag.Parse()
+	if pathToLookup == "" {
+		logrus.Fatalln("Missing source-path arg.")
+	}
+
+	conf, err := realPathToConfig(pathToLookup)
 	if err != nil {
 		logrus.WithError(err).Fatalln("error getting info for dir")
 	}
