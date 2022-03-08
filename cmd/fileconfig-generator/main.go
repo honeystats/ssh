@@ -9,12 +9,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func realPathToDir(startPath string) (*files.FilesystemDir, error) {
-	rootName := filepath.Base(startPath)
+func realPathToDir(startPath string, firstPass bool) (*files.FilesystemDir, error) {
 	root := &files.FilesystemDir{
-		Name:    rootName,
 		Subdirs: []*files.FilesystemDir{},
 		Files:   []*files.FilesystemFile{},
+	}
+	if !firstPass {
+		root.Name = filepath.Base(startPath)
 	}
 	dirFiles, err := ioutil.ReadDir(startPath)
 	if err != nil {
@@ -24,7 +25,7 @@ func realPathToDir(startPath string) (*files.FilesystemDir, error) {
 		if file.IsDir() {
 			path := filepath.Join(startPath, file.Name())
 			var res *files.FilesystemDir
-			res, err = realPathToDir(path)
+			res, err = realPathToDir(path, false)
 			if err != nil {
 				return nil, err
 			}
@@ -46,7 +47,7 @@ func realPathToDir(startPath string) (*files.FilesystemDir, error) {
 }
 
 func realPathToConfig(path string) (*files.FilesystemConfig, error) {
-	rootDir, err := realPathToDir(path)
+	rootDir, err := realPathToDir(path, true)
 	if err != nil {
 		return nil, err
 	}
