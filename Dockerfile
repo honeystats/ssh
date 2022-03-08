@@ -4,7 +4,7 @@ COPY go.mod ./
 COPY go.sum ./
 RUN go mod download
 COPY *.go ./
-COPY files ./
+COPY files ./files
 RUN go build -o /ssh
 
 FROM alpine:latest
