@@ -12,6 +12,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/gliderlabs/ssh"
+	"github.com/honeystats/ssh/files"
 	"github.com/sirupsen/logrus"
 )
 
@@ -134,20 +135,20 @@ func runCmd(ctx ssh.Context, state *SessionState, cmd string) string {
 	case "clear":
 		return "\033c"
 	case "ls":
-		err, res := ls(state.Cwd, args)
+		err, res := ls(state.Root, state.Cwd, args)
 		if err != nil {
 			return fmt.Sprintf("Error: %s\n", err)
 		}
 		return res
 	case "cd":
-		err, res := cd(state.Cwd, args)
+		err, res := cd(state.Root, state.Cwd, args)
 		if err != nil {
 			return fmt.Sprintf("Error: %s\n", err)
 		}
 		state.Cwd = res
 		return ""
 	case "cat":
-		err, res := cat(state.Cwd, args)
+		err, res := cat(state.Root, state.Cwd, args)
 		if err != nil {
 			return fmt.Sprintf("%s\n", err)
 		}
@@ -183,14 +184,14 @@ func tabCompleteFile(state *SessionState, partialFile string) (string, bool) {
 	lastSlash := strings.LastIndex(partialFile, "/")
 	if lastSlash > 0 {
 		dirPath := partialFile[0 : lastSlash+1]
-		err, res := startDir.getFileOrDir(dirPath)
+		err, res := startDir.GetFileOrDir(state.Root, dirPath)
 		if err != nil {
 			return "", false
 		}
-		startDir = res.(*FilesystemDir)
+		startDir = res.(*files.FilesystemDir)
 		searchFile = partialFile[lastSlash+1:]
 	}
-	validFileDir := []FileDir{}
+	validFileDir := []files.FileDir{}
 	for _, file := range startDir.Files {
 		validFileDir = append(validFileDir, file)
 	}
@@ -381,9 +382,10 @@ type SSHKey struct {
 }
 
 type SessionState struct {
-	Cwd       *FilesystemDir `json:"cwd"`
-	Passwords []string       `json:"passwords"`
-	Keys      []SSHKey       `json:"keys"`
+	Root      *files.FilesystemDir `json:"-"`
+	Cwd       *files.FilesystemDir `json:"cwd"`
+	Passwords []string             `json:"passwords"`
+	Keys      []SSHKey             `json:"keys"`
 }
 
 // Map from session ID to session state
@@ -397,6 +399,7 @@ func (m SessionMap) getOrCreateById(id string) *SessionState {
 		return state
 	}
 	var newState SessionState = SessionState{
+		Root:      FILESYSTEM.Root,
 		Cwd:       FILESYSTEM.Root,
 		Passwords: []string{},
 		Keys:      []SSHKey{},
