@@ -21,9 +21,9 @@ type FileDir interface {
 }
 
 type FilesystemFile struct {
-	Name    string         `json:"name"`
-	Content string         `json:"content"`
-	Parent  *FilesystemDir `json:"-"`
+	Name    string         `yaml:"name"`
+	Content string         `yaml:"content"`
+	Parent  *FilesystemDir `yaml:"-"`
 }
 
 func (f FilesystemFile) PlainName() string {
@@ -55,11 +55,11 @@ func (f FilesystemFile) TryCat() (error, string) {
 }
 
 type FilesystemDir struct {
-	Name        string            `json:"name"`
-	Permissions int               `json:"permissions"`
-	Subdirs     []*FilesystemDir  `json:"subdirs"`
-	Files       []*FilesystemFile `json:"files"`
-	Parent      *FilesystemDir    `json:"-"`
+	Name        string            `yaml:"name"`
+	Permissions int               `yaml:"permissions"`
+	Subdirs     []*FilesystemDir  `yaml:"subdirs"`
+	Files       []*FilesystemFile `yaml:"files"`
+	Parent      *FilesystemDir    `yaml:"-"`
 }
 
 func (d FilesystemDir) Path() string {
@@ -159,8 +159,8 @@ func fillInParents(root *FilesystemDir) {
 	}
 }
 
-func (dir *FilesystemDir) ToString() (string, error) {
-	data, err := yaml.Marshal(dir)
+func (cfg *FilesystemConfig) ToString() (string, error) {
+	data, err := yaml.Marshal(cfg)
 	return string(data), err
 }
 

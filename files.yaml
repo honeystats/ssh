@@ -1,26 +1,26 @@
 root:
-  name: ""
-  permissions: 755
+  name: example
+  permissions: 0
   subdirs:
-    - name: home
-      permissions: 755
-      subdirs:
-        - name: ubuntu
-          permissions: 755
-          files:
-            - name: secret
-              content: |
-                This is a secret!
-          subdirs:
-            - name: example
-              permissions: 755
-              subdirs:
-                - name: aadir
-                - name: bdir
-              files:
-                - name: afile
+  - name: a
+    permissions: 0
+    subdirs:
+    - name: b
+      permissions: 0
+      subdirs: []
       files:
-        - name: thisisafile
-          content: |
-            content
-  files: []
+      - name: someotherfile
+        content: |
+          this
+          file
+          has
+          newlines
+    files:
+    - name: somefile
+      content: |
+        this is file a/somefile
+  files:
+  - name: file-directly-in-example
+    content: |
+      testing
+

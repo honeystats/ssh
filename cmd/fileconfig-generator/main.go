@@ -45,12 +45,23 @@ func realPathToDir(startPath string) (*files.FilesystemDir, error) {
 	return root, nil
 }
 
+func realPathToConfig(path string) (*files.FilesystemConfig, error) {
+	rootDir, err := realPathToDir(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return &files.FilesystemConfig{
+		Root: rootDir,
+	}, nil
+}
+
 func main() {
-	dir, err := realPathToDir("/home/kyle/Downloads/example")
+	conf, err := realPathToConfig("/home/kyle/Downloads/example")
 	if err != nil {
 		logrus.WithError(err).Fatalln("error getting info for dir")
 	}
-	str, err := dir.ToString()
+	str, err := conf.ToString()
 	if err != nil {
 		logrus.WithError(err).Fatalln("error marshalling dir to string")
 	}
