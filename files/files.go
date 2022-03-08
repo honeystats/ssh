@@ -159,6 +159,11 @@ func fillInParents(root *FilesystemDir) {
 	}
 }
 
+func (dir *FilesystemDir) ToString() (string, error) {
+	data, err := yaml.Marshal(dir)
+	return string(data), err
+}
+
 func StrToFilesystem(cfg []byte) FilesystemConfig {
 	ret := &FilesystemConfig{}
 	yaml.Unmarshal(cfg, ret)
