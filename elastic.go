@@ -29,7 +29,7 @@ func sendToESWithCtx(ctx ssh.Context, state *SessionState, doc SubDocument) {
 		Keys:      state.Keys,
 		Fields:    doc,
 		SessionID: ctx.SessionID(),
-		User:      ctx.User(),
+		Username:  ctx.User(),
 	}
 	if len(splat) == 2 {
 		toplevelDoc.SourceIP = splat[0]

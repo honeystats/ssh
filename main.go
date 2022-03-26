@@ -52,7 +52,7 @@ type SSHDoc struct {
 	Keys       []SSHKey    `json:"keys"`
 	Fields     SubDocument `json:"fields"`
 	SessionID  string      `json:"sessionId"`
-	User       string      `json:"user"`
+	Username   string      `json:"username"`
 	Timestamp  time.Time   `json:"@timestamp"`
 }
 
