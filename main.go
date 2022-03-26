@@ -69,7 +69,7 @@ func (_ DocCommandRun) action() string {
 }
 
 type DocLogin struct {
-	User string `json:"user"`
+	Username string `json:"username"`
 }
 
 func (_ DocLogin) action() string {
@@ -77,7 +77,7 @@ func (_ DocLogin) action() string {
 }
 
 type DocLogout struct {
-	User string `json:"user"`
+	Username string `json:"username"`
 }
 
 func (_ DocLogout) action() string {
@@ -269,7 +269,7 @@ func sshHandler(s ssh.Session) {
 	reader := bufio.NewReader(s)
 	io.WriteString(s, makePrompt(s, state))
 	sendToES(DocLogin{
-		User: s.User(),
+		Username: s.User(),
 	})
 	var cmd []byte = []byte{}
 	for {
@@ -285,7 +285,7 @@ func sshHandler(s ssh.Session) {
 				"id":   sessionId,
 			}).Infoln("SSH session closed")
 			sendToES(DocLogout{
-				User: s.User(),
+				Username: s.User(),
 			})
 			s.Close()
 		}
